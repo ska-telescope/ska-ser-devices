@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "ska-ser-devices"
+version = "0.0.1"
+description = "A library package for communicating with hardware through standard interfaces (e.g. MODBUS, SCPI, SNMP)."
+authors = ["Wombat Team"]
+license = "BSD-3-clause"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+flake8 = "^6.0.0"
+isort = "^5.12.0"
+pylint = "^2.17.0"
+pylint-junit = "^0.3.2"
+pytest = "^7.2.2"
+pytest-cov = "^4.0.0"
+flake8-docstrings = "^1.7.0"
+flake8-rst-docstrings = "^0.3.0"
+darglint = "^1.8.1"
+mypy = "^1.1.1"
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "^5.2"
+docutils = "^0.17"
+PyYAML = "^6.0"
+sphinx-rtd-theme = "^1.0"
+sphinx-autodoc-typehints = "^1.19"
+
+[tool.flake8]
+max-line-length = 88
+
+# E203 and W503 conflict with black
+ignore = ["E203", "W503"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
