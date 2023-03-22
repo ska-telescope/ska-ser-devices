@@ -26,9 +26,6 @@ copyright = '2023, Team Wombat'
 author = 'Team Wombat'
 release = '0.0.1'
 
-# The full version, including alpha/beta/rc tags
-release = '0.2.4'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -69,5 +66,5 @@ html_context = {
 }
 
 intersphinx_mapping = {
-    "https://docs.python.org/3.9/": None,
+    "https://docs.python.org/3.10/": None,
 }
