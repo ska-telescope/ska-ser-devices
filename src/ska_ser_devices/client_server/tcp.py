@@ -122,7 +122,8 @@ class TcpClient:
         :param host: host name or IP address of the server.
         :param port: port on which the server is running.
         :param timeout: how long to wait when attempting to send or
-            receive data.
+            receive data, in seconds. If None, the socket blocks
+            indefinitely.
         :param buffer_size: maximum size of a bytestring.
         """
         self._host = host

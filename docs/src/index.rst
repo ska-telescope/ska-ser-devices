@@ -2,7 +2,7 @@ ska-ser-devices
 ===============
 
 The ``ska-ser-devices`` repository supports low-level interfacing of software with hardware,
-within the `Square Kilometre Array`_.
+within `Square Kilometre Array Observatory`_ control system software.
 
 It is the home of the :py:mod:`ska_ser_devices` python package.
 The ``ska_ser_devices`` python package is currently under development;
@@ -12,7 +12,7 @@ on top of connection-oriented transport-layer interfaces
 (mainly TCP, but a Telnet client is also provided for debugging purposes).
 For details, see the :doc:`API docs <api/index>`.`
 
-.. _Square Kilometre Array: https://skatelescope.org/
+.. _Square Kilometre Array Observatory: https://skao.int/
 
 .. toctree::
    :maxdepth: 2

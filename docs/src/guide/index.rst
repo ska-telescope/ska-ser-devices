@@ -11,25 +11,27 @@ Development
 -----------
 The development toolchain is provided by the `ska-cicd-makefile`_ project,
 which is added to this project as a git submodule. Therefore when cloning
-this repo, be sure to use the ``--recurse-submodules`` argument:
+this repo, be sure to use the ``--recurse-submodules`` argument when
+cloning and pulling. For efficiency reasons, it is also a good idea to
+clone with the ``--shallow-submodules`` argument:
 
 .. code-block:: shell-session
 
-    me@local:~$ git clone --recurse-submodules https://gitlab.com/ska-telescope/ska-ser-devices.git
+    me@local:~$ git clone --recurse-submodules --shallow-submodules https://gitlab.com/ska-telescope/ska-ser-devices.git
     Cloning into 'ska-ser-devices'...
-    remote: Enumerating objects: 48, done.
-    remote: Counting objects: 100% (48/48), done.
-    remote: Compressing objects: 100% (36/36), done.
-    remote: Total 48 (delta 3), reused 0 (delta 0), pack-reused 0
-    Unpacking objects: 100% (48/48), 51.26 KiB | 4.27 MiB/s, done.
+    remote: Enumerating objects: 73, done.
+    remote: Counting objects: 100% (73/73), done.
+    remote: Compressing objects: 100% (57/57), done.
+    remote: Total 73 (delta 6), reused 0 (delta 0), pack-reused 0
+    Unpacking objects: 100% (73/73), 63.48 KiB | 1.71 MiB/s, done.
     Submodule '.make' (https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile.git) registered for path '.make'
     Cloning into '/home/dev065/foo/ska-ser-devices/.make'...
-    remote: Enumerating objects: 3088, done.        
-    remote: Counting objects: 100% (149/149), done.        
-    remote: Compressing objects: 100% (125/125), done.        
-    remote: Total 3088 (delta 81), reused 45 (delta 24), pack-reused 2939        
-    Receiving objects: 100% (3088/3088), 6.77 MiB | 3.21 MiB/s, done.
-    Resolving deltas: 100% (1878/1878), done.
+    remote: Enumerating objects: 231, done.        
+    remote: Counting objects: 100% (231/231), done.        
+    remote: Compressing objects: 100% (190/190), done.        
+    remote: Total 231 (delta 21), reused 201 (delta 20), pack-reused 0        
+    Receiving objects: 100% (231/231), 6.08 MiB | 4.16 MiB/s, done.
+    Resolving deltas: 100% (21/21), done.
     Submodule path '.make': checked out '93828e42b0b1415b674281257d09df04c8b87a8b'
     me@local:~$ 
 

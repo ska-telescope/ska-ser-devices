@@ -7,14 +7,16 @@ application layer via a bytestring iterator:
 Receipt of an application payload may be split across multiple buffers,
 and the manner by which the application layer decides
 that it has received enough bytes to comprise a full application payload
-is application-dependent.
+is exclusively determined by the application.
 
 For example, the application layer might deal in "lines",
 and receiving a "line" might involve continually receiving bytestrings
 until a line terminator character sequence such as "\r\n" is encountered.
 
-Using TCP as an example, this concatenation of bytestrings into an
-application payload is typically implemented like:
+Using TCP as an example for how transport protocol details (e.g. socket
+reads) are commonly mixed with application-level decision logic,
+the concatenation of bytestrings into an application payload
+is typically implemented like:
 
 .. code-block:: python
 
@@ -22,14 +24,12 @@ application payload is typically implemented like:
     while not data.endswith(b"\r\n"):
         data = data + my_socket.recv(1024)
 
-but this approach mixes transport protocol details (e.g socket reads)
-with application-level decision logic.
-
 Instead, this module handles this situation
 by passing a bytestring iterator to the application layer.
 Thus, it is the application layer's job to iterate over bytestrings
 until it has constructed a full application payload.
-Meanwhile, the transport protocol details remain hidden.
+Meanwhile, the transport protocol details remain hidden,
+and the application remains agnostic of any transport mechanism.
 
 .. code-block:: python
 
