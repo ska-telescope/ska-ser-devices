@@ -1,0 +1,9 @@
+# Version History
+
+## unreleased
+
+## 0.1.0
+
+* LOW-448 - Client-server subpackage -- supports building network
+  applications on top of TCP (and other transport layers that provide
+  guarantees).
