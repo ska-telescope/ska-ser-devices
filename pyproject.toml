@@ -30,12 +30,6 @@ PyYAML = "^6.0"
 sphinx-rtd-theme = "^1.0"
 sphinx-autodoc-typehints = "^1.19"
 
-[tool.flake8]
-max-line-length = 88
-
-# E203 and W503 conflict with black
-ignore = ["E203", "W503"]
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
