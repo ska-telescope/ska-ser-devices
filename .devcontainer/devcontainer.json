@@ -17,7 +17,11 @@
                 "python.linting.pylintEnabled": true,
                 "python.linting.pylintPath": "/usr/local/bin/pylint"
             },
-            "extensions": ["ms-python.python"]
+            "extensions": [
+                "ms-python.pylint",
+                "ms-python.python",
+                "ms-vscode.makefile-tools",
+            ]
         }
     },
     "postCreateCommand": "sudo poetry config virtualenvs.create false && sudo poetry install"

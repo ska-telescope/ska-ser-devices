@@ -132,9 +132,7 @@ def reverse_client_fixture(
     return application_client
 
 
-def test_client_server(
-    reverse_client: ApplicationClient, payload_length: int
-) -> None:
+def test_client_server(reverse_client: ApplicationClient, payload_length: int) -> None:
     """
     Test client-server interactions.
 
@@ -148,9 +146,7 @@ def test_client_server(
         the request protocol assumes a fixed length.
     """
     characters = string.ascii_letters + string.digits + string.punctuation
-    request_str = "".join(
-        random.choice(characters) for i in range(payload_length)
-    )
+    request_str = "".join(random.choice(characters) for i in range(payload_length))
     request = request_str.encode("utf-8")
 
     response = reverse_client(request)

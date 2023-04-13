@@ -155,9 +155,7 @@ class ApplicationClient(Generic[RequestPayloadT, ResponsePayloadT]):
         self._unmarshaller = response_unmarshaller
 
     @overload  # for the type checker
-    def __call__(  # noqa: D102
-        self, request: RequestPayloadT
-    ) -> ResponsePayloadT:
+    def __call__(self, request: RequestPayloadT) -> ResponsePayloadT:  # noqa: D102
         ...
 
     @overload  # for the type checker

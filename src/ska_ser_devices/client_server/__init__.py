@@ -48,11 +48,7 @@ __all__ = [
     "TransportClientProtocol",
 ]
 
-from .application import (
-    ApplicationClient,
-    ApplicationServer,
-    TransportClientProtocol,
-)
+from .application import ApplicationClient, ApplicationServer, TransportClientProtocol
 from .marshaller import FixedLengthBytesMarshaller, SentinelBytesMarshaller
 from .tcp import TcpClient, TcpServer
 from .telnet import TelnetClient
