@@ -53,9 +53,7 @@ class _TcpServerRequestHandler(socketserver.BaseRequestHandler):
         """Handle a client request."""
         server = cast(TcpServer, self.server)
 
-        bytes_iterator = _TcpBytestringIterator(
-            self.request, server.buffer_size
-        )
+        bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
         response = server.callback(bytes_iterator)
         if response:
             self.request.sendall(response)
