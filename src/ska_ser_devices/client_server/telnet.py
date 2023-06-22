@@ -1,5 +1,6 @@
 r"""This module provides a Telnet client."""
 from __future__ import annotations
+import logging
 
 from contextlib import contextmanager
 from telnetlib import Telnet
@@ -62,6 +63,7 @@ class TelnetClient:
         :param timeout: how long to wait when attempting to send or
             receive data.
         """
+        logging.info("Start telnet client %s port %d", host, port)
         self._host = host
         self._port = port
         self._timeout = timeout

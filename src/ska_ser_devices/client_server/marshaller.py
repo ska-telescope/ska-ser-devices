@@ -15,7 +15,8 @@ Another is to make application payloads a known, fixed length.
 
 This module implements some of these strategies.
 """
-
+import io
+import logging
 from typing import Iterator
 
 
@@ -39,6 +40,7 @@ class SentinelBytesMarshaller:
         :param sentinel: the sentinel character that marks the end of
             the payload
         """
+        logging.debug("Sentinel set to %s", str(sentinel))
         self._sentinel = sentinel
 
     def marshall(self, payload: bytes) -> bytes:
@@ -69,6 +71,7 @@ class SentinelBytesMarshaller:
         payload = next(bytes_iterator)
         while not payload.endswith(self._sentinel):
             payload = payload + next(bytes_iterator)
+        logging.debug("Unmarshall payload %s", str(payload))
         return payload.removesuffix(self._sentinel)
 
 
