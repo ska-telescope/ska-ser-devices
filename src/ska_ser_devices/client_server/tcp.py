@@ -9,6 +9,8 @@ from typing import Callable, Final, Iterator, Optional, Union, cast
 
 DEFAULT_BUFFER_SIZE: Final = 1024
 
+logger = logging.getLogger(__name__)
+
 
 class _TcpBytestringIterator:
     """An iterator on TCP byte buffers."""
@@ -53,7 +55,7 @@ class _TcpServerRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         """Handle a client request."""
         server = cast(TcpServer, self.server)
-        logging.info("Handle request [%s]", self.request)
+        logger.info("Handle request [%s]", self.request)
         bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
         response = server.callback(bytes_iterator)
         if response:
@@ -91,7 +93,7 @@ class TcpServer(socketserver.TCPServer):
         self.callback: Final = callback
         self.buffer_size: Final = buffer_size
 
-        logging.info("Start TCP server %s port %d", host, port)
+        logger.info("Start TCP server %s port %d", host, port)
         super().__init__((host, port), _TcpServerRequestHandler)
 
 
@@ -126,7 +128,7 @@ class TcpClient:
             indefinitely.
         :param buffer_size: maximum size of a bytestring.
         """
-        logging.info("Start TCP client %s port %d", host, port)
+        logger.info("Start TCP client %s port %d", host, port)
         self._host = host
         self._port = port
         self._timeout = timeout
@@ -164,7 +166,7 @@ class TcpClient:
 
         :yields: a bytestring iterator.
         """
-        logging.info("Request [%s]", request)
+        logger.info("Request [%s]", request)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self._host, self._port))
         sock.settimeout(self._timeout)

@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from telnetlib import Telnet
 from typing import Iterator, Optional
 
+logger = logging.getLogger(__name__)
+
 
 class _TelnetBytestringIterator:
     """An iterator on Telnet byte buffers."""
@@ -63,7 +65,7 @@ class TelnetClient:
         :param timeout: how long to wait when attempting to send or
             receive data.
         """
-        logging.info("Start telnet client %s port %d", host, port)
+        logger.info("Start telnet client %s port %d", host, port)
         self._host = host
         self._port = port
         self._timeout = timeout

@@ -19,6 +19,8 @@ import io
 import logging
 from typing import Iterator
 
+logger = logging.getLogger(__name__)
+
 
 class SentinelBytesMarshaller:
     r"""
@@ -40,7 +42,7 @@ class SentinelBytesMarshaller:
         :param sentinel: the sentinel character that marks the end of
             the payload
         """
-        logging.debug("Sentinel set to %s", str(sentinel))
+        logger.debug("Sentinel set to %s", str(sentinel))
         self._sentinel = sentinel
 
     def marshall(self, payload: bytes) -> bytes:
@@ -71,7 +73,7 @@ class SentinelBytesMarshaller:
         payload = next(bytes_iterator)
         while not payload.endswith(self._sentinel):
             payload = payload + next(bytes_iterator)
-        logging.debug("Unmarshall payload %s", str(payload))
+        logger.debug("Unmarshall payload %s", str(payload))
         return payload.removesuffix(self._sentinel)
 
 
