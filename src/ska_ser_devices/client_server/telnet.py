@@ -102,7 +102,7 @@ class TelnetClient:
 
         :yields: a bytestring iterator.
         """
-        # Oh, this is nasty.
+        # TODO Oh, this is nasty.
         if self._timeout is None:
             session = Telnet(self._host, self._port)
         else:

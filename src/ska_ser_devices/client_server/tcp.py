@@ -45,7 +45,8 @@ class _TcpBytestringIterator:
         """
         bytestring = self._socket.recv(self._buffer_size)
         if not bytestring:
-            raise StopIteration()  # not essential but helpful for debugging
+            # TODO not essential but helpful for debugging
+            raise StopIteration()
         return bytestring
 
 
