@@ -1,6 +1,7 @@
 """This module provides a TCP server and client."""
 from __future__ import annotations
 
+import logging
 import socket
 import socketserver
 from contextlib import contextmanager
@@ -13,16 +14,21 @@ class _TcpBytestringIterator:
     """An iterator on TCP byte buffers."""
 
     def __init__(
-        self, tcp_socket: socket.socket, buffer_size: int = DEFAULT_BUFFER_SIZE
+        self,
+        tcp_socket: socket.socket,
+        buffer_size: int = DEFAULT_BUFFER_SIZE,
+        logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
 
         :param tcp_socket: the socket on which to receive bytestrings
         :param buffer_size: maximum size of a received bytestring
+        :param logger: a python standard logger
         """
         self._socket = tcp_socket
         self._buffer_size = buffer_size
+        self._logger = logger
 
     def __iter__(self) -> Iterator[bytes]:
         """
@@ -42,7 +48,15 @@ class _TcpBytestringIterator:
         """
         bytestring = self._socket.recv(self._buffer_size)
         if not bytestring:
+            if self._logger:
+                self._logger.debug("TCP socket received no bytes.")
+
             raise StopIteration()  # not essential but helpful for debugging
+        if self._logger:
+            self._logger.debug(
+                f"TCP socket received bytes {bytestring.hex()} "
+                f"(raw string {repr(bytestring)})"
+            )
         return bytestring
 
 
@@ -52,11 +66,17 @@ class _TcpServerRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         """Handle a client request."""
         server = cast(TcpServer, self.server)
+        if server.logger:
+            server.logger.debug(f"TCP server handling request: {repr(self.request)}")
 
         bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
         response = server.callback(bytes_iterator)
         if response:
+            if server.logger:
+                server.logger.debug(f"TCP server responding with: {repr(response)}")
             self.request.sendall(response)
+        elif server.logger:
+            server.logger.debug("TCP server not responding to request")
 
 
 class TcpServer(socketserver.TCPServer):
@@ -71,12 +91,13 @@ class TcpServer(socketserver.TCPServer):
     that response is sent back to the client.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         host: str,
         port: int,
         callback: Callable[[Iterator[bytes]], Optional[bytes]],
         buffer_size: int = DEFAULT_BUFFER_SIZE,
+        logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
@@ -86,9 +107,11 @@ class TcpServer(socketserver.TCPServer):
         :param callback: the application layer callback to call when
             bytes are received
         :param buffer_size: maximum size of a bytestring.
+        :param logger: a python standard logger
         """
         self.callback: Final = callback
         self.buffer_size: Final = buffer_size
+        self.logger = logger
 
         super().__init__((host, port), _TcpServerRequestHandler)
 
@@ -107,12 +130,13 @@ class TcpClient:
     as it needs to constitute an application payload.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         host: Union[str, bytes, bytearray],
         port: int,
         timeout: Optional[float] = None,
         buffer_size: int = DEFAULT_BUFFER_SIZE,
+        logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
@@ -123,11 +147,13 @@ class TcpClient:
             receive data, in seconds. If None, the socket blocks
             indefinitely.
         :param buffer_size: maximum size of a bytestring.
+        :param logger: a python standard logger
         """
         self._host = host
         self._port = port
         self._timeout = timeout
         self._buffer_size = buffer_size
+        self._logger = logger
 
     @contextmanager
     def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
@@ -164,6 +190,11 @@ class TcpClient:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self._host, self._port))
         sock.settimeout(self._timeout)
+        if self._logger:
+            self._logger.debug(
+                f"TCP client sending request bytes {request.hex()} "
+                f"(raw string {repr(request)}"
+            )
         sock.sendall(request)
         yield _TcpBytestringIterator(sock, self._buffer_size)
         sock.close()
