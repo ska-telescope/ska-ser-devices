@@ -129,17 +129,17 @@ class TelnetClient:
         if self._logger:
             self._logger.debug(
                 f"AttenTelnet session sending request bytes {request.hex()} "
-                f"(raw string {repr(request)}"
+                f"(raw string {repr(request)})"
             )
         banner = session.read_some()  # read and discard telnet banner
         if self._logger:
             self._logger.debug(
                 f"Telnet session read and discarded banner bytes {banner.hex()} "
-                f"(raw string {repr(banner)}"
+                f"(raw string {repr(banner)})"
             )
             self._logger.debug(
                 f"Telnet session sending request bytes {request.hex()} "
-                f"(raw string {repr(request)}"
+                f"(raw string {repr(request)})"
             )
         session.write(request)
 

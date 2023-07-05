@@ -193,7 +193,7 @@ class TcpClient:
         if self._logger:
             self._logger.debug(
                 f"TCP client sending request bytes {request.hex()} "
-                f"(raw string {repr(request)}"
+                f"(raw string {repr(request)})"
             )
         sock.sendall(request)
         yield _TcpBytestringIterator(sock, self._buffer_size)

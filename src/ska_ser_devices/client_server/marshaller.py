@@ -16,6 +16,7 @@ Another is to make application payloads a known, fixed length.
 This module implements some of these strategies.
 """
 
+import logging
 from typing import Iterator
 
 
@@ -32,14 +33,16 @@ class SentinelBytesMarshaller:
     * A file, terminated by an EOF byte.
     """
 
-    def __init__(self, sentinel: bytes) -> None:
+    def __init__(self, sentinel: bytes, logger: logging.Logger | None = None) -> None:
         """
         Initialise a new instance.
 
         :param sentinel: the sentinel character that marks the end of
             the payload
+        :param logger: a python standard logger
         """
         self._sentinel = sentinel
+        self._logger = logger
 
     def marshall(self, payload: bytes) -> bytes:
         """
@@ -51,6 +54,11 @@ class SentinelBytesMarshaller:
 
         :return: the bytes to be transmitted.
         """
+        if self._logger:
+            self._logger.debug(
+                f"Marshalling payload {repr(payload)} "
+                f"by appending sentinel {repr(self._sentinel)}"
+            )
         return payload + self._sentinel
 
     def unmarshall(self, bytes_iterator: Iterator[bytes]) -> bytes:
@@ -66,22 +74,41 @@ class SentinelBytesMarshaller:
 
         :return: the application-layer bytestring, minus the terminator.
         """
-        payload = next(bytes_iterator)
-        while not payload.endswith(self._sentinel):
-            payload = payload + next(bytes_iterator)
-        return payload.removesuffix(self._sentinel)
+        payload = b""
+        more_bytes = next(bytes_iterator)
+        payload = payload + more_bytes
+
+        while not more_bytes.endswith(self._sentinel):
+            if self._logger:
+                self._logger.debug(
+                    f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                    f"has not yet encountered sentinel {repr(self._sentinel)}"
+                )
+            more_bytes = next(bytes_iterator)
+            payload = payload + more_bytes
+
+        payload = payload.removesuffix(self._sentinel)
+        if self._logger:
+            self._logger.debug(
+                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                f"encountered sentinel {repr(self._sentinel)}, "
+                f"returning {repr(payload)}"
+            )
+        return payload
 
 
 class FixedLengthBytesMarshaller:
     """A bytes marshaller for bytestrings of fixed, known length."""
 
-    def __init__(self, length: int) -> None:
+    def __init__(self, length: int, logger: logging.Logger | None = None) -> None:
         """
         Initialise a new instance.
 
         :param length: the length of the payload
+        :param logger: a python standard logger
         """
         self._length = length
+        self._logger = logger
 
     def marshall(self, payload: bytes) -> bytes:
         """
@@ -119,13 +146,27 @@ class FixedLengthBytesMarshaller:
         :raises ValueError: if the received bytestring is not of the
             correct length
         """
-        payload = next(bytes_iterator)
+        payload = b""
+        more_bytes = next(bytes_iterator)
+        payload = payload + more_bytes
+
         while len(payload) < self._length:
-            payload = payload + next(bytes_iterator)
+            if self._logger:
+                self._logger.debug(
+                    f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                    f"payload is incomplete: {len(payload)} < {self._length}"
+                )
+            more_bytes = next(bytes_iterator)
+            payload = payload + more_bytes
 
         if len(payload) != self._length:
             raise ValueError(
                 f"Cannot unmarshall payload of length {len(payload)}; "
                 f"length must be exactly {self._length}."
+            )
+        if self._logger:
+            self._logger.debug(
+                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                f"payload is complete, returning {repr(payload)}"
             )
         return payload
