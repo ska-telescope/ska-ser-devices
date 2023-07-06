@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from telnetlib import Telnet
 from typing import Iterator, Optional
 
+_module_logger = logging.getLogger(__name__)
+
 
 class _TelnetBytestringIterator:
     """An iterator on Telnet byte buffers."""
@@ -22,7 +24,7 @@ class _TelnetBytestringIterator:
         :param logger: a python standard logger
         """
         self._session = session
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     def __iter__(self) -> Iterator[bytes]:
         """
@@ -42,14 +44,13 @@ class _TelnetBytestringIterator:
         """
         bytestring = self._session.read_some()
         if not bytestring:
-            if self._logger:
-                self._logger.debug("Telnet session received no bytes.")
+            self._logger.debug("Telnet session received no bytes.")
             raise StopIteration()  # not essential but helpful for debugging
-        if self._logger:
-            self._logger.debug(
-                f"Telnet session received bytes {bytestring.hex()} "
-                f"(raw string {repr(bytestring)})"
-            )
+
+        self._logger.debug(
+            f"Telnet session received bytes {bytestring.hex()} "
+            f"(raw string {repr(bytestring)})"
+        )
         return bytestring
 
 
@@ -86,7 +87,7 @@ class TelnetClient:
         self._host = host
         self._port = port
         self._timeout = timeout
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     @contextmanager
     def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
@@ -126,21 +127,19 @@ class TelnetClient:
         else:
             session = Telnet(self._host, self._port, self._timeout)
 
-        if self._logger:
-            self._logger.debug(
-                f"AttenTelnet session sending request bytes {request.hex()} "
-                f"(raw string {repr(request)})"
-            )
+        self._logger.debug(
+            f"Telnet session sending request bytes {request.hex()} "
+            f"(raw string {repr(request)})"
+        )
         banner = session.read_some()  # read and discard telnet banner
-        if self._logger:
-            self._logger.debug(
-                f"Telnet session read and discarded banner bytes {banner.hex()} "
-                f"(raw string {repr(banner)})"
-            )
-            self._logger.debug(
-                f"Telnet session sending request bytes {request.hex()} "
-                f"(raw string {repr(request)})"
-            )
+        self._logger.debug(
+            f"Telnet session read and discarded banner bytes {banner.hex()} "
+            f"(raw string {repr(banner)})"
+        )
+        self._logger.debug(
+            f"Telnet session sending request bytes {request.hex()} "
+            f"(raw string {repr(request)})"
+        )
         session.write(request)
 
         yield _TelnetBytestringIterator(session)

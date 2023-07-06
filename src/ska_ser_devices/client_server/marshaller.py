@@ -19,6 +19,8 @@ This module implements some of these strategies.
 import logging
 from typing import Iterator
 
+_module_logger = logging.getLogger(__name__)
+
 
 class SentinelBytesMarshaller:
     r"""
@@ -42,7 +44,7 @@ class SentinelBytesMarshaller:
         :param logger: a python standard logger
         """
         self._sentinel = sentinel
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     def marshall(self, payload: bytes) -> bytes:
         """
@@ -54,11 +56,10 @@ class SentinelBytesMarshaller:
 
         :return: the bytes to be transmitted.
         """
-        if self._logger:
-            self._logger.debug(
-                f"Marshalling payload {repr(payload)} "
-                f"by appending sentinel {repr(self._sentinel)}"
-            )
+        self._logger.debug(
+            f"Marshalling payload {repr(payload)} "
+            f"by appending sentinel {repr(self._sentinel)}"
+        )
         return payload + self._sentinel
 
     def unmarshall(self, bytes_iterator: Iterator[bytes]) -> bytes:
@@ -79,21 +80,19 @@ class SentinelBytesMarshaller:
         payload = payload + more_bytes
 
         while not more_bytes.endswith(self._sentinel):
-            if self._logger:
-                self._logger.debug(
-                    f"Unmarshaller received payload bytes {repr(more_bytes)}, "
-                    f"has not yet encountered sentinel {repr(self._sentinel)}"
-                )
+            self._logger.debug(
+                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                f"has not yet encountered sentinel {repr(self._sentinel)}"
+            )
             more_bytes = next(bytes_iterator)
             payload = payload + more_bytes
 
         payload = payload.removesuffix(self._sentinel)
-        if self._logger:
-            self._logger.debug(
-                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
-                f"encountered sentinel {repr(self._sentinel)}, "
-                f"returning {repr(payload)}"
-            )
+        self._logger.debug(
+            f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+            f"encountered sentinel {repr(self._sentinel)}, "
+            f"returning {repr(payload)}"
+        )
         return payload
 
 
@@ -108,7 +107,7 @@ class FixedLengthBytesMarshaller:
         :param logger: a python standard logger
         """
         self._length = length
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     def marshall(self, payload: bytes) -> bytes:
         """
@@ -151,11 +150,10 @@ class FixedLengthBytesMarshaller:
         payload = payload + more_bytes
 
         while len(payload) < self._length:
-            if self._logger:
-                self._logger.debug(
-                    f"Unmarshaller received payload bytes {repr(more_bytes)}, "
-                    f"payload is incomplete: {len(payload)} < {self._length}"
-                )
+            self._logger.debug(
+                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+                f"payload is incomplete: {len(payload)} < {self._length}"
+            )
             more_bytes = next(bytes_iterator)
             payload = payload + more_bytes
 
@@ -164,9 +162,8 @@ class FixedLengthBytesMarshaller:
                 f"Cannot unmarshall payload of length {len(payload)}; "
                 f"length must be exactly {self._length}."
             )
-        if self._logger:
-            self._logger.debug(
-                f"Unmarshaller received payload bytes {repr(more_bytes)}, "
-                f"payload is complete, returning {repr(payload)}"
-            )
+        self._logger.debug(
+            f"Unmarshaller received payload bytes {repr(more_bytes)}, "
+            f"payload is complete, returning {repr(payload)}"
+        )
         return payload

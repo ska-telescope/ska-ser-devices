@@ -10,6 +10,9 @@ from typing import Callable, Final, Iterator, Optional, Union, cast
 DEFAULT_BUFFER_SIZE: Final = 1024
 
 
+_module_logger = logging.getLogger(__name__)
+
+
 class _TcpBytestringIterator:
     """An iterator on TCP byte buffers."""
 
@@ -28,7 +31,7 @@ class _TcpBytestringIterator:
         """
         self._socket = tcp_socket
         self._buffer_size = buffer_size
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     def __iter__(self) -> Iterator[bytes]:
         """
@@ -48,15 +51,13 @@ class _TcpBytestringIterator:
         """
         bytestring = self._socket.recv(self._buffer_size)
         if not bytestring:
-            if self._logger:
-                self._logger.debug("TCP socket received no bytes.")
-
+            self._logger.debug("TCP socket received no bytes.")
             raise StopIteration()  # not essential but helpful for debugging
-        if self._logger:
-            self._logger.debug(
-                f"TCP socket received bytes {bytestring.hex()} "
-                f"(raw string {repr(bytestring)})"
-            )
+
+        self._logger.debug(
+            f"TCP socket received bytes {bytestring.hex()} "
+            f"(raw string {repr(bytestring)})"
+        )
         return bytestring
 
 
@@ -66,16 +67,14 @@ class _TcpServerRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         """Handle a client request."""
         server = cast(TcpServer, self.server)
-        if server.logger:
-            server.logger.debug(f"TCP server handling request: {repr(self.request)}")
+        server.logger.debug(f"TCP server handling request: {repr(self.request)}")
 
         bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
         response = server.callback(bytes_iterator)
         if response:
-            if server.logger:
-                server.logger.debug(f"TCP server responding with: {repr(response)}")
+            server.logger.debug(f"TCP server responding with: {repr(response)}")
             self.request.sendall(response)
-        elif server.logger:
+        else:
             server.logger.debug("TCP server not responding to request")
 
 
@@ -111,7 +110,7 @@ class TcpServer(socketserver.TCPServer):
         """
         self.callback: Final = callback
         self.buffer_size: Final = buffer_size
-        self.logger = logger
+        self.logger = logger or _module_logger
 
         super().__init__((host, port), _TcpServerRequestHandler)
 
@@ -153,7 +152,7 @@ class TcpClient:
         self._port = port
         self._timeout = timeout
         self._buffer_size = buffer_size
-        self._logger = logger
+        self._logger = logger or _module_logger
 
     @contextmanager
     def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
@@ -190,11 +189,10 @@ class TcpClient:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self._host, self._port))
         sock.settimeout(self._timeout)
-        if self._logger:
-            self._logger.debug(
-                f"TCP client sending request bytes {request.hex()} "
-                f"(raw string {repr(request)})"
-            )
+        self._logger.debug(
+            f"TCP client sending request bytes {request.hex()} "
+            f"(raw string {repr(request)})"
+        )
         sock.sendall(request)
         yield _TcpBytestringIterator(sock, self._buffer_size)
         sock.close()
