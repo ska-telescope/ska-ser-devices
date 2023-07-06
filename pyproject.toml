@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ska-ser-devices"
-version = "0.1.0"
+version = "0.1.1"
 description = "A library package for communicating with hardware through standard interfaces (e.g. MODBUS, SCPI, SNMP)."
 authors = ["Wombat Team"]
 license = "BSD-3-clause"

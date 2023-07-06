@@ -2,6 +2,10 @@
 
 ## unreleased
 
+## 0.1.1
+
+* MCCS-1622 - Add transport level logging
+
 ## 0.1.0
 
 * LOW-448 - Client-server subpackage -- supports building network

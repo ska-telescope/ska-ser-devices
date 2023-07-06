@@ -24,7 +24,7 @@ def setup(app):
 project = 'ska-ser-devices'
 copyright = '2023, Team Wombat'
 author = 'Team Wombat'
-release = '0.1.0'
+release = '0.1.1'
 
 
 # -- General configuration ---------------------------------------------------
