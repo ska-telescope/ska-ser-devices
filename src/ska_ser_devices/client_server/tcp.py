@@ -94,7 +94,7 @@ class TcpServer(socketserver.TCPServer):
         self.callback: Final = callback
         self.buffer_size: Final = buffer_size
 
-        logger.info("Start TCP server %s port %d", host, port)
+        logger.info("Start TCP server '%s:%d'", host, port)
         super().__init__((host, port), _TcpServerRequestHandler)
 
 
