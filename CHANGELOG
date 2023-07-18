@@ -2,6 +2,8 @@
 
 ## unreleased
 
+* MCCS-1636 - Use ska-ser-sphinx-theme for documentation
+
 ## 0.1.1
 
 * MCCS-1622 - Add transport level logging
