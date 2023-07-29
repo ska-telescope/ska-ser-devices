@@ -2,23 +2,30 @@ r"""This module provides a Telnet client."""
 from __future__ import annotations
 import logging
 
+import logging
 from contextlib import contextmanager
 from telnetlib import Telnet
 from typing import Iterator, Optional
 
-logger = logging.getLogger(__name__)
+_module_logger = logging.getLogger(__name__)
 
 
 class _TelnetBytestringIterator:
     """An iterator on Telnet byte buffers."""
 
-    def __init__(self, session: Telnet) -> None:
+    def __init__(
+        self,
+        session: Telnet,
+        logger: logging.Logger | None = None,
+    ) -> None:
         """
         Initialise a new instance.
 
         :param session: the Telnet session
+        :param logger: a python standard logger
         """
         self._session = session
+        self._logger = logger or _module_logger
 
     def __iter__(self) -> Iterator[bytes]:
         """
@@ -33,8 +40,19 @@ class _TelnetBytestringIterator:
         Return the next bytestring.
 
         :return: the next bytestring.
+
+        :raises StopIteration: if the session performs an empty read.
         """
-        return self._session.read_some()
+        bytestring = self._session.read_some()
+        if not bytestring:
+            self._logger.debug("Telnet session received no bytes.")
+            raise StopIteration()  # not essential but helpful for debugging
+
+        self._logger.debug(
+            f"Telnet session received bytes {bytestring.hex()} "
+            f"(raw string {repr(bytestring)})"
+        )
+        return bytestring
 
 
 # pylint: disable-next=too-few-public-methods
@@ -56,6 +74,7 @@ class TelnetClient:
         host: str,
         port: int,
         timeout: Optional[float] = None,
+        logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
@@ -64,11 +83,13 @@ class TelnetClient:
         :param port: port on which the server is running.
         :param timeout: how long to wait when attempting to send or
             receive data.
+        :param logger: a python standard logger
         """
         logger.info("Start telnet client %s port %d", host, port)
         self._host = host
         self._port = port
         self._timeout = timeout
+        self._logger = logger or _module_logger
 
     @contextmanager
     def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
@@ -108,7 +129,19 @@ class TelnetClient:
         else:
             session = Telnet(self._host, self._port, self._timeout)
 
-        session.read_some()  # read and discard telnet banner
+        self._logger.debug(
+            f"Telnet session sending request bytes {request.hex()} "
+            f"(raw string {repr(request)})"
+        )
+        banner = session.read_some()  # read and discard telnet banner
+        self._logger.debug(
+            f"Telnet session read and discarded banner bytes {banner.hex()} "
+            f"(raw string {repr(banner)})"
+        )
+        self._logger.debug(
+            f"Telnet session sending request bytes {request.hex()} "
+            f"(raw string {repr(request)})"
+        )
         session.write(request)
 
         yield _TelnetBytestringIterator(session)

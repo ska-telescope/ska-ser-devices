@@ -1,14 +1,17 @@
 [tool.poetry]
 name = "ska-ser-devices"
-version = "0.1.0"
+version = "0.1.1"
 description = "A library package for communicating with hardware through standard interfaces (e.g. MODBUS, SCPI, SNMP)."
 authors = ["Wombat Team"]
 license = "BSD-3-clause"
 readme = "README.md"
 
+[[tool.poetry.source]]
+name = 'ska-nexus'
+url = 'https://artefact.skao.int/repository/pypi-internal/simple'
+
 [tool.poetry.dependencies]
 python = "^3.10"
-
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
@@ -27,7 +30,7 @@ mypy = "^1.1.1"
 Sphinx = "^5.2"
 docutils = "^0.17"
 PyYAML = "^6.0"
-sphinx-rtd-theme = "^1.0"
+ska-ser-sphinx-theme = "^0.1.1"
 sphinx-autodoc-typehints = "^1.19"
 
 [build-system]
