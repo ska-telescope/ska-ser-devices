@@ -41,6 +41,8 @@ __all__ = [
     "TcpClient",
     "TcpServer",
     "TelnetClient",
+    "Telnet3Client",
+    "Telnet3Server",
     "FixedLengthBytesMarshaller",
     "SentinelBytesMarshaller",
     "ApplicationClient",
@@ -52,3 +54,4 @@ from .application import ApplicationClient, ApplicationServer, TransportClientPr
 from .marshaller import FixedLengthBytesMarshaller, SentinelBytesMarshaller
 from .tcp import TcpClient, TcpServer
 from .telnet import TelnetClient
+from .telnet3 import Telnet3Client, Telnet3Server

@@ -5,6 +5,7 @@ That is, a client server that works with application payloads rather
 than at the bytestring level.
 """
 
+import logging
 from contextlib import contextmanager
 from typing import (
     Callable,
@@ -19,6 +20,8 @@ from typing import (
 
 RequestPayloadT = TypeVar("RequestPayloadT")
 ResponsePayloadT = TypeVar("ResponsePayloadT")
+
+logger = logging.getLogger(__name__)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -112,6 +115,7 @@ class ApplicationServer(Generic[RequestPayloadT, ResponsePayloadT]):
         :return: the bytes to be returned to the client.
         """
         request_payload = self._unmarshaller(bytes_iterator)
+        logger.info("Request %s", request_payload.decode("ascii"))
         response_payload = self._payload_callback(request_payload)
         if response_payload is None:
             return None
@@ -195,6 +199,7 @@ class ApplicationClient(Generic[RequestPayloadT, ResponsePayloadT]):
         :returns: a response payload
         """
         request_bytes = self._marshaller(request)
+        logger.info("Request %s", request_bytes.decode("ascii").rstrip())
         with self._bytes_client.request(request_bytes) as bytes_iterator:
             if expect_response:
                 return self._unmarshaller(bytes_iterator)

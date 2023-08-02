@@ -113,7 +113,7 @@ class TcpServer(socketserver.TCPServer):
         self.buffer_size: Final = buffer_size
         self.logger = logger or _module_logger
 
-        logger.info("Start TCP server '%s:%d'", host, port)
+        self.logger.info("Start TCP server '%s:%d'", host, port)
         super().__init__((host, port), _TcpServerRequestHandler)
 
 
@@ -150,12 +150,12 @@ class TcpClient:
         :param buffer_size: maximum size of a bytestring.
         :param logger: a python standard logger
         """
-        logger.info("Start TCP client %s port %d", host, port)
         self._host = host
         self._port = port
         self._timeout = timeout
         self._buffer_size = buffer_size
         self._logger = logger or _module_logger
+        self._logger.info("Start TCP client %s port %d", host, port)
 
     @contextmanager
     def request(self, request: bytes) -> Iterator[Iterator[bytes]]:

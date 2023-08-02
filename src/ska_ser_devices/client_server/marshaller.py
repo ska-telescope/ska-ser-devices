@@ -43,9 +43,9 @@ class SentinelBytesMarshaller:
             the payload
         :param logger: a python standard logger
         """
-        logger.debug("Sentinel set to %s", str(sentinel))
         self._sentinel = sentinel
         self._logger = logger or _module_logger
+        self._logger.debug("Sentinel set to %s", str(sentinel))
 
     def marshall(self, payload: bytes) -> bytes:
         """
