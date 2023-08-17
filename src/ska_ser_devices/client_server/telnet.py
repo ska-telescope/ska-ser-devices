@@ -7,6 +7,7 @@ from telnetlib import Telnet
 from typing import Iterator, Optional
 
 _module_logger = logging.getLogger(__name__)
+_module_logger.setLevel(logging.INFO)
 
 
 class _TelnetBytestringIterator:

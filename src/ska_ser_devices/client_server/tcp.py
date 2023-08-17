@@ -11,6 +11,7 @@ DEFAULT_BUFFER_SIZE: Final = 1024
 
 
 _module_logger = logging.getLogger(__name__)
+_module_logger.setLevel(logging.INFO)
 
 
 class _TcpBytestringIterator:

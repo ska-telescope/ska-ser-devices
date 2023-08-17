@@ -20,6 +20,7 @@ import logging
 from typing import Iterator
 
 _module_logger = logging.getLogger(__name__)
+_module_logger.setLevel(logging.INFO)
 
 
 class SentinelBytesMarshaller:
