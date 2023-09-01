@@ -20,7 +20,6 @@ import logging
 from typing import Iterator
 
 _module_logger = logging.getLogger(__name__)
-_module_logger.setLevel(logging.INFO)
 
 
 class SentinelBytesMarshaller:
@@ -123,6 +122,7 @@ class FixedLengthBytesMarshaller:
         :raises ValueError: if the received bytestring is not of the
             correct length
         """
+        self._logger.debug(f"Marshall payload {payload} ({len(payload)} bytes")
         if len(payload) != self._length:
             raise ValueError(
                 f"Cannot marshall payload of length {len(payload)}; "
@@ -150,6 +150,7 @@ class FixedLengthBytesMarshaller:
         more_bytes = next(bytes_iterator)
         payload = payload + more_bytes
 
+        self._logger.debug(f"Unmarshall payload {payload} ({len(payload)} bytes")
         while len(payload) < self._length:
             self._logger.debug(
                 f"Unmarshaller received payload bytes {repr(more_bytes)}, "
