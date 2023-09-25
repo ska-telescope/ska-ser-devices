@@ -39,16 +39,26 @@ and the application remains agnostic of any transport mechanism.
 """
 __all__ = [
     "TcpClient",
+    "TcpClientSession",
     "TcpServer",
     "TelnetClient",
+    "TelnetClientSession",
     "FixedLengthBytesMarshaller",
     "SentinelBytesMarshaller",
     "ApplicationClient",
+    "ApplicationClientSession",
     "ApplicationServer",
     "TransportClientProtocol",
+    "TransportClientSessionProtocol",
 ]
 
-from .application import ApplicationClient, ApplicationServer, TransportClientProtocol
+from .application import (
+    ApplicationClient,
+    ApplicationClientSession,
+    ApplicationServer,
+    TransportClientProtocol,
+    TransportClientSessionProtocol,
+)
 from .marshaller import FixedLengthBytesMarshaller, SentinelBytesMarshaller
-from .tcp import TcpClient, TcpServer
-from .telnet import TelnetClient
+from .tcp import TcpClient, TcpClientSession, TcpServer
+from .telnet import TelnetClient, TelnetClientSession

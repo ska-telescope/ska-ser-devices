@@ -2,9 +2,9 @@ r"""This module provides a Telnet client."""
 from __future__ import annotations
 
 import logging
-from contextlib import contextmanager
 from telnetlib import Telnet
-from typing import Iterator, Optional
+from types import TracebackType
+from typing import Iterator, Type
 
 _module_logger = logging.getLogger(__name__)
 
@@ -54,7 +54,6 @@ class _TelnetBytestringIterator:
         return bytestring
 
 
-# pylint: disable-next=too-few-public-methods
 class TelnetClient:
     """
     A Telnet client.
@@ -70,27 +69,92 @@ class TelnetClient:
 
     def __init__(
         self,
-        host: str,
-        port: int,
-        timeout: Optional[float] = None,
+        address: tuple[str, int],
+        timeout: float | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
 
-        :param host: host name or IP address of the server.
-        :param port: port on which the server is running.
+        :param address: tuple consisting of the host name or IP address,
+            and the port, of the server.
         :param timeout: how long to wait when attempting to send or
             receive data.
         :param logger: a python standard logger
         """
-        self._host = host
-        self._port = port
+        self._address = address
         self._timeout = timeout
         self._logger = logger or _module_logger
 
-    @contextmanager
-    def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
+        self._session: TelnetClientSession | None = None
+
+    def connect(self) -> TelnetClientSession:
+        """
+        Establish a new connection.
+
+        :return: access to the established session.
+        """
+        self._session = TelnetClientSession(self._address, self._timeout, self._logger)
+        return self._session
+
+    def __enter__(self) -> TelnetClientSession:
+        """
+        Establish a new connection and enter the session context.
+
+        :return: access to the session context
+        """
+        return self.connect()
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exception: BaseException | None,
+        trace: TracebackType | None,
+    ) -> bool:
+        """
+        Exit method for "with" context.
+
+        :param exc_type: the type of exception thrown in the with block
+        :param exception: the exception thrown in the with block
+        :param trace: a traceback
+        :returns: whether the exception (if any) has been fully handled
+            by this method and should be swallowed i.e. not re-raised
+        """
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+        return exception is None
+
+
+class TelnetClientSession:
+    """A class for representing and managing a TCP session."""
+
+    def __init__(
+        self,
+        address: tuple[str, int],
+        timeout: float | None,
+        logger: logging.Logger,
+    ) -> None:
+        """
+        Establish a new session.
+
+        :param address: a tuple consisting of
+            the host name or IP address,
+            and the port, of the server.
+        :param timeout: how long to wait when attempting to send or
+            receive data, in seconds. If None, the socket blocks
+            indefinitely.
+        :param logger: a python standard logger
+        """
+        self._logger = logger
+
+        # Oh, this is nasty.
+        if timeout is None:
+            self._telnet_session = Telnet(*address)
+        else:
+            self._telnet_session = Telnet(*address, timeout)
+
+    def request(self, request: bytes) -> Iterator[bytes]:
         r"""
         Initiate a new client request.
 
@@ -98,7 +162,8 @@ class TelnetClient:
 
         .. code-block:: python
 
-            with telnet_client.request(request_bytes) as bytes_iterator:
+            with telnet_client as session:
+                byte_iterator = session.request(request_bytes):
                 response_bytes = next(bytes_iterator)
                 if not response_bytes.endswith(b"\r\n"):
                     response_bytes += next(bytes_iterator)
@@ -106,32 +171,26 @@ class TelnetClient:
         That is,
 
         * First enter into a session with the Telnet server
-          by establishing a connection and sending the request data.
+        * Then send the request data.
         * Since only the calling application can know
-          when it has received enough bytes for a complete response,
-          the session context returns a bytestring iterator
-          for the application layer to use to retrieve blocks of bytes.
-          (In this example, the application layer knows
-          that the response is terminated by "\r\n",
-          so it keeps receiving data until it encounters that sequence
-          and the end of a block.)
+            when it has received enough bytes for a complete response,
+            the session context returns a bytestring iterator
+            for the application layer to use to retrieve blocks of bytes.
+            (In this example, the application layer knows
+            that the response is terminated by "\r\n",
+            so it keeps receiving data until it encounters that sequence
+            and the end of a block.)
         * Upon exiting the session context, the session is closed.
 
         :param request: request bytes.
 
-        :yields: a bytestring iterator.
+        :returns: a bytestring iterator.
         """
-        # Oh, this is nasty.
-        if self._timeout is None:
-            session = Telnet(self._host, self._port)
-        else:
-            session = Telnet(self._host, self._port, self._timeout)
-
         self._logger.debug(
             f"Telnet session sending request bytes {request.hex()} "
             f"(raw string {repr(request)})"
         )
-        banner = session.read_some()  # read and discard telnet banner
+        banner = self._telnet_session.read_some()  # read and discard telnet banner
         self._logger.debug(
             f"Telnet session read and discarded banner bytes {banner.hex()} "
             f"(raw string {repr(banner)})"
@@ -140,8 +199,10 @@ class TelnetClient:
             f"Telnet session sending request bytes {request.hex()} "
             f"(raw string {repr(request)})"
         )
-        session.write(request)
+        self._telnet_session.write(request)
 
-        yield _TelnetBytestringIterator(session)
+        return _TelnetBytestringIterator(self._telnet_session)
 
-        session.close()
+    def close(self) -> None:
+        """Close the connection and end the session."""
+        self._telnet_session.close()

@@ -105,7 +105,7 @@ def reverse_client_fixture(
     reverse_server: TcpServer,
     fixed_length_marshaller: FixedLengthBytesMarshaller,
     sentinel_marshaller: SentinelBytesMarshaller,
-) -> ApplicationClient:
+) -> ApplicationClient[bytes, bytes]:
     """
     Return an application-layer client to the reversal server.
 
@@ -122,8 +122,7 @@ def reverse_client_fixture(
 
     :return: an application-layer client for the reversal server.
     """
-    host, port = reverse_server.server_address
-    tcp_client = TcpClient(host, port)
+    tcp_client = TcpClient(reverse_server.server_address)
     application_client = ApplicationClient(
         tcp_client,
         fixed_length_marshaller.marshall,
@@ -132,7 +131,9 @@ def reverse_client_fixture(
     return application_client
 
 
-def test_client_server(reverse_client: ApplicationClient, payload_length: int) -> None:
+def test_client_server(
+    reverse_client: ApplicationClient[bytes, bytes], payload_length: int
+) -> None:
     """
     Test client-server interactions.
 
@@ -140,6 +141,17 @@ def test_client_server(reverse_client: ApplicationClient, payload_length: int) -
     We use the client to submit it to the server.
     We get back a response.
     We check that the response is the reversal of the original.
+
+    We do this multiple times through one session,
+    then we close that session, open a new session,
+    and do it some more.
+
+    This test tests:
+    * end-to-end, from client to server and back again
+    * the fixed length marshaller, which is used for requests
+    * the sentinel bytes marshaller, which is used for responses
+    * the sending of multiple requests and responses through a single connection;
+    * connection closure and the subsequent establishment of a new connection.
 
     :param reverse_client: the application-layer client
     :param payload_length: the payload length. This is required because
@@ -149,6 +161,20 @@ def test_client_server(reverse_client: ApplicationClient, payload_length: int) -
     request_str = "".join(random.choice(characters) for i in range(payload_length))
     request = request_str.encode("utf-8")
 
-    response = reverse_client(request)
+    with reverse_client as session:
+        for _ in range(3):
+            request_str = "".join(
+                random.choice(characters) for i in range(payload_length)
+            )
+            request = request_str.encode("utf-8")
+            response = session.send_receive(request)
+            assert response == bytes(reversed(request))
 
-    assert response == bytes(reversed(request))
+    with reverse_client as session:
+        for _ in range(3):
+            request_str = "".join(
+                random.choice(characters) for i in range(payload_length)
+            )
+            request = request_str.encode("utf-8")
+            response = session.send_receive(request)
+            assert response == bytes(reversed(request))

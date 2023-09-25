@@ -4,46 +4,74 @@ This module provides an application-layer client and server.
 That is, a client server that works with application payloads rather
 than at the bytestring level.
 """
+from __future__ import annotations
 
-from contextlib import contextmanager
-from typing import (
-    Callable,
-    Generic,
-    Iterator,
-    Literal,
-    Optional,
-    Protocol,
-    TypeVar,
-    overload,
-)
+from types import TracebackType
+from typing import Callable, Generic, Iterator, Protocol, Type, TypeVar
 
 RequestPayloadT = TypeVar("RequestPayloadT")
 ResponsePayloadT = TypeVar("ResponsePayloadT")
 
 
-# pylint: disable-next=too-few-public-methods
 class TransportClientProtocol(Protocol):
     """
-    Structural subtyping protocol for supported transport protocols.
+    Structural subtyping protocol for supported transport client.
 
-    That is, in order for a transport protocol client to be supported by
-    this module, it must provide a request method that is implemented
-    to:
-
-    * enter a session context with the server,
-    * issue the client request,
-    * return an iterator, for use by the application layer
-      to read as many bytestrings as necessary in order
-      to construct the complete response payload.
-    * exit the session context.
+    In order for a transport client to be supported by this module,
+    it must provide a connect method that establishes a session,
+    and also implement a session context manager.
     """
 
-    @contextmanager
-    def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
+    def connect(self) -> TransportClientSessionProtocol:
+        """
+        Establish a connection, and return access to the session.
+
+        :return: access to the session context.
+        """  # noqa: DAR202
+
+    def __enter__(self) -> TransportClientSessionProtocol:
+        """
+        Establish a connection, and enter a session context.
+
+        :return: access to the session context.
+        """  # noqa: DAR202
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exception: BaseException | None,
+        trace: TracebackType | None,
+    ) -> bool:
+        """
+        Close the session and exit the session context.
+
+        :param exc_type: the type of exception thrown in the with block
+        :param exception: the exception thrown in the with block
+        :param trace: a traceback
+
+        :returns: whether the exception (if any) has been fully handled
+            by this method and should be swallowed i.e. not re-raised
+        """  # noqa: DAR202
+
+
+class TransportClientSessionProtocol(Protocol):
+    """
+    Structural subtyping protocol for supported transport client session.
+
+    In order for a transport session to be supported by this module,
+    it must provide a request method that is implemented to
+
+    1. issue the client request, and
+    2. return an iterator, for use by the application layer
+       to read as many bytestrings as necessary in order
+       to construct the complete response payload.
+    """
+
+    def request(self, request: bytes) -> Iterator[bytes]:
         """
         Transact a client request.
 
-        Enter a session context with the server, issue the request,
+        Issue the request,
         and return an iterator for use by the application layer
         to read as many bytestrings as necessary
         to construct the complete response payload.
@@ -52,6 +80,9 @@ class TransportClientProtocol(Protocol):
 
         :yield: a bytes iterator by which to construct the response
         """  # noqa: DAR302
+
+    def close(self) -> None:
+        """Close the connection."""
 
 
 # pylint: disable-next=too-few-public-methods
@@ -74,7 +105,7 @@ class ApplicationServer(Generic[RequestPayloadT, ResponsePayloadT]):
         self,
         request_unmarshaller: Callable[[Iterator[bytes]], RequestPayloadT],
         response_marshaller: Callable[[ResponsePayloadT], bytes],
-        callback: Callable[[RequestPayloadT], Optional[ResponsePayloadT]],
+        callback: Callable[[RequestPayloadT], ResponsePayloadT | None],
     ) -> None:
         """
         Initialise a new instance.
@@ -92,7 +123,7 @@ class ApplicationServer(Generic[RequestPayloadT, ResponsePayloadT]):
         self._unmarshaller = request_unmarshaller
         self._marshaller = response_marshaller
 
-    def __call__(self, bytes_iterator: Iterator[bytes]) -> Optional[bytes]:
+    def __call__(self, bytes_iterator: Iterator[bytes]) -> bytes | None:
         """
         Handle receipt of bytes from the transport layer.
 
@@ -118,7 +149,6 @@ class ApplicationServer(Generic[RequestPayloadT, ResponsePayloadT]):
         return self._marshaller(response_payload)
 
 
-# pylint: disable-next=too-few-public-methods
 class ApplicationClient(Generic[RequestPayloadT, ResponsePayloadT]):
     """
     An application-layer client.
@@ -151,32 +181,100 @@ class ApplicationClient(Generic[RequestPayloadT, ResponsePayloadT]):
             into application-layer response payloads.
         """
         self._bytes_client = bytes_client
-        self._marshaller = request_marshaller
-        self._unmarshaller = response_unmarshaller
+        self._request_marshaller = request_marshaller
+        self._response_unmarshaller = response_unmarshaller
 
-    @overload  # for the type checker
-    def __call__(self, request: RequestPayloadT) -> ResponsePayloadT:  # noqa: D102
-        ...
+        self._session: ApplicationClientSession[
+            RequestPayloadT, ResponsePayloadT
+        ] | None = None
 
-    @overload  # for the type checker
-    def __call__(  # noqa: D102
-        self, request: RequestPayloadT, expect_response: Literal[True]
-    ) -> ResponsePayloadT:
-        ...
+    def connect(self) -> ApplicationClientSession[RequestPayloadT, ResponsePayloadT]:
+        """
+        Establish a new connection.
 
-    @overload  # for the type checker
-    def __call__(  # noqa: D102
-        self, request: RequestPayloadT, expect_response: Literal[False]
+        :return: access to the new session.
+        """
+        self._session = ApplicationClientSession[RequestPayloadT, ResponsePayloadT](
+            self._request_marshaller,
+            self._response_unmarshaller,
+            self._bytes_client.connect(),
+        )
+        return self._session
+
+    def __enter__(self) -> ApplicationClientSession[RequestPayloadT, ResponsePayloadT]:
+        """
+        Establish a new connection, and enter the new session context.
+
+        :return: access to the session context.
+        """
+        return self.connect()
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exception: BaseException | None,
+        trace: TracebackType | None,
+    ) -> bool:
+        """
+        Exit method for "with" context.
+
+        :param exc_type: the type of exception thrown in the with block
+        :param exception: the exception thrown in the with block
+        :param trace: a traceback
+        :returns: whether the exception (if any) has been fully handled
+            by this method and should be swallowed i.e. not re-raised
+        """
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+        return exception is None
+
+
+class ApplicationClientSession(Generic[RequestPayloadT, ResponsePayloadT]):
+    """A class for representing and managing a session."""
+
+    def __init__(
+        self,
+        request_marshaller: Callable[[RequestPayloadT], bytes],
+        response_unmarshaller: Callable[[Iterator[bytes]], ResponsePayloadT],
+        transport_session: TransportClientSessionProtocol,
     ) -> None:
-        ...
+        """
+        Initialise a new session instance.
 
-    def __call__(
+        :param request_marshaller: a callable that marshalls
+            application-layer request payloads into bytes.
+        :param response_unmarshaller: a callable that unmarshalls byte
+            into application-layer response payloads.
+        :param transport_session: the underlying transport-layer session.
+        """
+        self._request_marshaller = request_marshaller
+        self._response_unmarshaller = response_unmarshaller
+        self._transport_session = transport_session
+
+    def send(
         self,
         request: RequestPayloadT,
-        expect_response: bool = True,
-    ) -> Optional[ResponsePayloadT]:
+    ) -> None:
         """
-        Call the client with a request.
+        Call the client with a request, for which no response is expected.
+
+        The client marshalls the request (an application payload)
+        down to a bytestring,
+        then hands the bytestring down to the bytestring TCP client
+        for sending to the server.
+
+        :param request: the payload to be sent to the server
+        """
+        request_bytes = self._request_marshaller(request)
+        self._transport_session.request(request_bytes)
+
+    def send_receive(
+        self,
+        request: RequestPayloadT,
+    ) -> ResponsePayloadT:
+        """
+        Call the client with a request, for which a response is expected.
 
         The client marshalls the request (an application payload)
         down to a bytestring,
@@ -187,15 +285,13 @@ class ApplicationClient(Generic[RequestPayloadT, ResponsePayloadT]):
         which is returned to the caller.
 
         :param request: the payload to be sent to the server
-        :param expect_response: whether to wait for a response from the
-            server. Defaults to True. In the unusual case where the
-            client does not expect a response to their request, set this
-            to False.
 
         :returns: a response payload
         """
-        request_bytes = self._marshaller(request)
-        with self._bytes_client.request(request_bytes) as bytes_iterator:
-            if expect_response:
-                return self._unmarshaller(bytes_iterator)
-        return None
+        request_bytes = self._request_marshaller(request)
+        bytes_iterator = self._transport_session.request(request_bytes)
+        return self._response_unmarshaller(bytes_iterator)
+
+    def close(self) -> None:
+        """Close the connection and end the session."""
+        self._transport_session.close()
