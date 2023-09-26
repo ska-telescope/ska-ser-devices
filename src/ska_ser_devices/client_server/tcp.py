@@ -228,8 +228,8 @@ class TcpClientSession:
         self._session_socket: socket.socket | None = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
-        self._session_socket.connect(address)
         self._session_socket.settimeout(timeout)
+        self._session_socket.connect(address)
         self._logger.info("TCP client connection established.")
 
     def request(self, request: bytes) -> Iterator[bytes]:
