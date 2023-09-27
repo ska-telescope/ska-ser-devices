@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../../src'))
 project = 'ska-ser-devices'
 copyright = '2023, Team Wombat'
 author = 'Team Wombat'
-release = '0.1.1'
+release = '0.2.0'
 
 
 # -- General configuration ---------------------------------------------------

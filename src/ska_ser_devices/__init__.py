@@ -6,4 +6,4 @@ facto* standard interfaces, languages and protocols. Examples include
 SCPI, MODBUS, SNMP, Visa, etc. The ska_ser_devices package exists to
 provide common, shared implementations of elements of these interfaces.
 """
-__version__ = "0.1.1"
+__version__ = "0.2.0"
