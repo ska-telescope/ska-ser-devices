@@ -4,8 +4,8 @@ from __future__ import annotations
 import logging
 import socket
 import socketserver
-from contextlib import contextmanager
-from typing import Callable, Final, Iterator, Optional, Union, cast
+from types import TracebackType
+from typing import Callable, Final, Iterator, Type, cast
 
 DEFAULT_BUFFER_SIZE: Final = 1024
 
@@ -69,13 +69,17 @@ class _TcpServerRequestHandler(socketserver.BaseRequestHandler):
         server = cast(TcpServer, self.server)
         server.logger.debug(f"TCP server handling request: {repr(self.request)}")
 
-        bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
-        response = server.callback(bytes_iterator)
-        if response:
-            server.logger.debug(f"TCP server responding with: {repr(response)}")
-            self.request.sendall(response)
-        else:
-            server.logger.debug("TCP server not responding to request")
+        while True:
+            bytes_iterator = _TcpBytestringIterator(self.request, server.buffer_size)
+            try:
+                response = server.callback(bytes_iterator)
+            except StopIteration:
+                break
+            if response:
+                server.logger.debug(f"TCP server responding with: {repr(response)}")
+                self.request.sendall(response)
+            else:
+                server.logger.debug("TCP server not responding to request")
 
 
 class TcpServer(socketserver.TCPServer):
@@ -94,7 +98,7 @@ class TcpServer(socketserver.TCPServer):
         self,
         host: str,
         port: int,
-        callback: Callable[[Iterator[bytes]], Optional[bytes]],
+        callback: Callable[[Iterator[bytes]], bytes | None],
         buffer_size: int = DEFAULT_BUFFER_SIZE,
         logger: logging.Logger | None = None,
     ) -> None:
@@ -115,7 +119,6 @@ class TcpServer(socketserver.TCPServer):
         super().__init__((host, port), _TcpServerRequestHandler)
 
 
-# pylint: disable-next=too-few-public-methods
 class TcpClient:
     """
     A TCP client that operates at the bytestring level.
@@ -129,41 +132,116 @@ class TcpClient:
     as it needs to constitute an application payload.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
-        host: Union[str, bytes, bytearray],
-        port: int,
-        timeout: Optional[float] = None,
+        address: tuple[str | bytes | bytearray, int],
+        timeout: float | None = None,
         buffer_size: int = DEFAULT_BUFFER_SIZE,
         logger: logging.Logger | None = None,
     ) -> None:
         """
         Initialise a new instance.
 
-        :param host: host name or IP address of the server.
-        :param port: port on which the server is running.
+        :param address: tuple consisting of
+            the host name or IP address, and the port, of the server.
         :param timeout: how long to wait when attempting to send or
             receive data, in seconds. If None, the socket blocks
             indefinitely.
         :param buffer_size: maximum size of a bytestring.
         :param logger: a python standard logger
         """
-        self._host = host
-        self._port = port
+        self._address = address
         self._timeout = timeout
         self._buffer_size = buffer_size
         self._logger = logger or _module_logger
 
-    @contextmanager
-    def request(self, request: bytes) -> Iterator[Iterator[bytes]]:
+        self._session: TcpClientSession | None = None
+        self._logger.debug("TCP client initialised.")
+
+    def connect(self) -> TcpClientSession:
+        """
+        Establish a new connection.
+
+        :return: access to the established session.
+        """
+        self._logger.debug("Creating TCP client session...")
+        self._session = TcpClientSession(
+            self._address, self._timeout, self._buffer_size, self._logger
+        )
+        return self._session
+
+    def __enter__(self) -> TcpClientSession:
+        """
+        Establish a new connection and enter the session context.
+
+        :return: access to the session context
+        """
+        return self.connect()
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exception: BaseException | None,
+        trace: TracebackType | None,
+    ) -> bool:
+        """
+        Exit method for "with" context.
+
+        :param exc_type: the type of exception thrown in the with block
+        :param exception: the exception thrown in the with block
+        :param trace: a traceback
+        :returns: whether the exception (if any) has been fully handled
+            by this method and should be swallowed i.e. not re-raised
+        """
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+        return exception is None
+
+
+class TcpClientSession:
+    """A class for representing and managing a TCP session."""
+
+    def __init__(
+        self,
+        address: tuple[str | bytes | bytearray, int],
+        timeout: float | None,
+        buffer_size: int,
+        logger: logging.Logger,
+    ) -> None:
+        """
+        Establish a new session.
+
+        :param address: a tuple consisting of
+            the host name or IP address,
+            and the port, of the server.
+        :param timeout: how long to wait when attempting to send or
+            receive data, in seconds. If None, the socket blocks
+            indefinitely.
+        :param buffer_size: maximum size of a bytestring.
+        :param logger: a python standard logger
+        """
+        self._logger = logger
+        self._buffer_size = buffer_size
+
+        self._logger.info(f"TCP client connecting to {address}...")
+        self._session_socket: socket.socket | None = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM
+        )
+        self._session_socket.settimeout(timeout)
+        self._session_socket.connect(address)
+        self._logger.info("TCP client connection established.")
+
+    def request(self, request: bytes) -> Iterator[bytes]:
         r"""
         Initiate a new client request.
 
-        Call this method with
+        For example:
 
         .. code-block:: python
 
-            with tcp_client.request(request_bytes) as bytes_iterator:
+            with tcp_client as session:
+                bytes_iterator = session.request(request_bytes):
                 response_bytes = next(bytes_iterator)
                 if not response_bytes.endswith(b"\r\n"):
                     response_bytes += next(bytes_iterator)
@@ -171,28 +249,36 @@ class TcpClient:
         That is,
 
         * First enter into a session with the TCP server
-          by establishing a connection and sending the request data.
+        * Then send the request data.
         * Since only the calling application can know
-          when it has received enough bytes for a complete response,
-          the session context returns a bytestring iterator
-          for the application layer to use to retrieve blocks of bytes.
-          (In this example, the application layer knows
-          that the response is terminated by "\r\n",
-          so it keeps receiving data until it encounters that sequence
-          and the end of a block.)
+            when it has received enough bytes for a complete response,
+            the session context returns a bytestring iterator
+            for the application layer to use to retrieve blocks of bytes.
+            (In this example, the application layer knows
+            that the response is terminated by "\r\n",
+            so it keeps receiving data until it encounters that sequence
+            and the end of a block.)
         * Upon exiting the session context, the session is closed.
 
         :param request: request bytes.
 
-        :yields: a bytestring iterator.
+        :raises ConnectionError: if the session socket is already closed.
+
+        :return: a bytestring iterator.
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((self._host, self._port))
-        sock.settimeout(self._timeout)
+        if not self._session_socket:
+            raise ConnectionError("Session socket is closed.")
+
         self._logger.debug(
             f"TCP client sending request bytes {request.hex()} "
             f"(raw string {repr(request)})"
         )
-        sock.sendall(request)
-        yield _TcpBytestringIterator(sock, self._buffer_size)
-        sock.close()
+        self._session_socket.sendall(request)
+        return _TcpBytestringIterator(self._session_socket, self._buffer_size)
+
+    def close(self) -> None:
+        """Close the connection and end the session."""
+        if self._session_socket:
+            self._session_socket.close()
+            self._session_socket = None
+        self._logger.info("TCP client closed connection.")
